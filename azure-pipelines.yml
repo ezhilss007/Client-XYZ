@@ -13,7 +13,7 @@ resources:
   repositories:
   - repository: TerraformModules
     type: github
-    endpoint: TerraformModules   # service connection to GitHub
+    endpoint: ezhilss007   # service connection to GitHub
     name: ezhilss007/TerraformModules
     ref: feature/Modules
 
