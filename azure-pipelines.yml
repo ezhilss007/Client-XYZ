@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  name: TerraformTraining-win11
+  name: TerraformTraining
 
 variables:
   workingDir: '$(Build.SourcesDirectory)\Client-XYZ'
