@@ -2,7 +2,7 @@
 # Resource Groups (for_each)
 # -------------------------
 module "rg" {
-  source = "./modules/rg"
+  source = ""../TerraformModules/rg"
 
   for_each = var.resource_groups
   name     = "${local.prefix}-${each.key}"
@@ -14,7 +14,7 @@ module "rg" {
 # Storage Accounts (for_each from map)
 # -------------------------
 module "storage" {
-  source = "./modules/storage"
+  source = ""../TerraformModules/storage"
 
   for_each = local.storage_map
 
@@ -31,7 +31,7 @@ module "storage" {
 # Network (for_each + dynamic)
 # -------------------------
 module "network" {
-  source = "./modules/network"
+  source = ""../TerraformModules/network"
 
   for_each = var.virtual_networks
 
@@ -62,7 +62,7 @@ resource "azurerm_public_ip" "pip" {
 # VM (count + conditional + references)
 # -------------------------
 module "vm" {
-  source = "./modules/vm"
+  source = ""../TerraformModules/vm"
 
   count = var.create_vm ? length(var.vms) : 0
 
