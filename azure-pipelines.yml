@@ -2,73 +2,94 @@ trigger:
 - main
 
 pool:
-  name: TerraformTraining
+  name: TerraformTraining   # your self-hosted agent
 
 variables:
   workingDir: '$(Build.SourcesDirectory)\Client-XYZ'
-  serviceConnection: 'TerraformTraining'
   terraformVersion: '1.5.7'
+  serviceConnection: 'TerraformTraining'
+
+resources:
+  repositories:
+  - repository: TerraformModules
+    type: github
+    endpoint: TerraformModules   # service connection to GitHub
+    name: ezhilss007/TerraformModules
+    ref: feature/Modules
 
 stages:
 
-
+# =========================
+# PLAN STAGE
+# =========================
 - stage: Plan
   displayName: Terraform Plan
+
   jobs:
   - job: PlanJob
     steps:
-    - checkout: self
 
-    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+    # Checkout both repos
+    - checkout: self
+    - checkout: TerraformModules
+
+    # Install Terraform (manual - no marketplace dependency)
+    - task: PowerShell@2
       displayName: Install Terraform
       inputs:
-        terraformVersion: '$(terraformVersion)'
+        targetType: inline
+        script: |
+          $version = "$(terraformVersion)"
+          $url = "https://releases.hashicorp.com/terraform/$version/terraform_${version}_windows_amd64.zip"
+          $zip = "$env:TEMP\terraform.zip"
+          $dest = "C:\terraform"
 
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
 
+          echo "##vso[task.prependpath]$dest"
+
+    # Verify installation
     - script: terraform -version
-      displayName: Verify Terraform Version
+      displayName: Verify Terraform
 
-    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+    # Terraform INIT
+    - task: AzureCLI@2
       displayName: Terraform Init
       inputs:
-        provider: 'azurerm'
-        command: 'init'
-        # workingDirectory: '$(workingDir)'
-        # backendServiceArm: '$(serviceConnection)'
-        # backendAzureRmResourceGroupName: 'tf-rg'
-        # backendAzureRmStorageAccountName: 'tfstorageacct123'
-        # backendAzureRmContainerName: 'tfstate'
-        # backendAzureRmKey: 'terraform.tfstate'
+        azureSubscription: '$(serviceConnection)'
+        scriptType: ps
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd "$(workingDir)"
+          terraform init
 
-    - script: terraform validate
-      workingDirectory: $(workingDir)
-      displayName: Terraform Validate
-
-
-    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+    # Terraform PLAN
+    - task: AzureCLI@2
       displayName: Terraform Plan
       inputs:
-        provider: 'azurerm'
-        command: 'plan'
-        workingDirectory: '$(workingDir)'
-        environmentServiceNameAzureRM: '$(serviceConnection)'
-        commandOptions: '-out=tfplan'
+        azureSubscription: '$(serviceConnection)'
+        scriptType: ps
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd "$(workingDir)"
+          terraform plan -out=tfplan
 
-   
+    # Publish plan artifact
     - publish: $(workingDir)\tfplan
       artifact: tfplan
 
-
-
+# =========================
+# APPLY STAGE (WITH APPROVAL)
+# =========================
 - stage: Apply
   displayName: Terraform Apply
   dependsOn: Plan
-  condition: succeeded()
 
   jobs:
   - deployment: ApplyJob
     displayName: Apply with Approval
-    environment: prod-approval   
+    environment: prod-approval   # 👈 configure approval in DevOps UI
 
     strategy:
       runOnce:
@@ -76,38 +97,48 @@ stages:
           steps:
 
           - checkout: self
+          - checkout: TerraformModules
 
           - download: current
             artifact: tfplan
 
-          
-          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+          # Install Terraform again (fresh agent step)
+          - task: PowerShell@2
             displayName: Install Terraform
             inputs:
-              terraformVersion: '$(terraformVersion)'
+              targetType: inline
+              script: |
+                $version = "$(terraformVersion)"
+                $url = "https://releases.hashicorp.com/terraform/$version/terraform_${version}_windows_amd64.zip"
+                $zip = "$env:TEMP\terraform.zip"
+                $dest = "C:\terraform"
+
+                Invoke-WebRequest -Uri $url -OutFile $zip
+                Expand-Archive -Path $zip -DestinationPath $dest -Force
+
+                echo "##vso[task.prependpath]$dest"
 
           - script: terraform -version
-            displayName: Verify Terraform Version
+            displayName: Verify Terraform
 
-
-          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+          # Terraform INIT
+          - task: AzureCLI@2
             displayName: Terraform Init
             inputs:
-              provider: 'azurerm'
-              command: 'init'
-              workingDirectory: '$(workingDir)'
-              backendServiceArm: '$(serviceConnection)'
-              backendAzureRmResourceGroupName: 'tf-rg'
-              backendAzureRmStorageAccountName: 'tfstorageacct123'
-              backendAzureRmContainerName: 'tfstate'
-              backendAzureRmKey: 'terraform.tfstate'
+              azureSubscription: '$(serviceConnection)'
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd "$(workingDir)"
+                terraform init
 
-     
-          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+          # Terraform APPLY
+          - task: AzureCLI@2
             displayName: Terraform Apply
             inputs:
-              provider: 'azurerm'
-              command: 'apply'
-              workingDirectory: '$(workingDir)'
-              environmentServiceNameAzureRM: '$(serviceConnection)'
-              commandOptions: 'tfplan'
+              azureSubscription: '$(serviceConnection)'
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd "$(workingDir)"
+                terraform apply tfplan
