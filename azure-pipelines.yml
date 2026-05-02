@@ -33,12 +33,12 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'init'
-        workingDirectory: '$(workingDir)'
-        backendServiceArm: '$(serviceConnection)'
-        backendAzureRmResourceGroupName: 'tf-rg'
-        backendAzureRmStorageAccountName: 'tfstorageacct123'
-        backendAzureRmContainerName: 'tfstate'
-        backendAzureRmKey: 'terraform.tfstate'
+        # workingDirectory: '$(workingDir)'
+        # backendServiceArm: '$(serviceConnection)'
+        # backendAzureRmResourceGroupName: 'tf-rg'
+        # backendAzureRmStorageAccountName: 'tfstorageacct123'
+        # backendAzureRmContainerName: 'tfstate'
+        # backendAzureRmKey: 'terraform.tfstate'
 
     - script: terraform validate
       workingDirectory: $(workingDir)
