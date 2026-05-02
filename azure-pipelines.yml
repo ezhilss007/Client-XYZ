@@ -8,6 +8,9 @@ variables:
   workingDir: '$(Build.SourcesDirectory)\Client-XYZ'
   terraformVersion: '1.5.7'
   serviceConnection: 'TerraformTraining'
+parameters: 
+   - name: tfvarsfilepath
+     type: string
 
 resources:
   repositories:
@@ -73,7 +76,7 @@ stages:
         scriptLocation: inlineScript
         inlineScript: |
           cd "$(workingDir)"
-          terraform plan -out=tfplan
+          terraform plan  -var-files ${{parameters.tfvarsfilepath}} -out=tfplan
 
     # Publish plan artifact
     - publish: $(workingDir)\tfplan
