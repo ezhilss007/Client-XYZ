@@ -2,41 +2,112 @@ trigger:
 - main
 
 pool:
-  name: TerraformTraining
-jobs:
-- job:'Terraform Init and Plan'
-  displayName: 'Terraform Init and Plan'
-  steps:
-   - checkout: self
-   - task: PowerShell@2
-     displayName: 'Terraform Init and Plan'
-     inputs:
+  name: TerraformTraining-win11
 
-        targetType: 'inline' 
-        script: |
-            $clientfolder = "$(Build.SourcesDirectory) \Terraform-MRR\$(clientsn) -$(environmentName)"
-            Write-Host "$clientfolder"
-            StfvarsContent = Get-Content "$clientfolder\terraform.tfvars"
-            $envvalue = ($tfvarsContent | Select-string -Pattern '^environmentName\s*-\s*"(.*)). Matches. Groups [1]. Value
-            $clientcodeValue = ($tfvarsContent | Select-String -Pattern ^clientsn\s*-\s*" (.) *). Matches. Groups[1]. Value
-            $terraformversion - ($tfvarsContent | Select-String -Pattern '^tfversion\s*-\s*"(.*)"') Matches. Groups [1]. Value
-            $subscription = ($tfvarsContent | select-String -Pattern '^azure-subscription-id\s*-\s*"(.*)"') . Matches.Groups[1]. Value
-            Write-Output "##vso[task.setvariable variable-environmentName; isoutput-true]senvValue" Write-Output "##vso[task.setvariable variable-clientsn;isOutput-true]$clientcodevalue" Write-Output "##so[task.setvariable variable-tfversion; isoutput-true]sterraformversion"
-            Write-Output "##so[task.setvariable variable-azure-subscription-id; isoutput-true]$subscription"
-  -  task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
-     displayName: "Install Terraform' 
-     inputs:
-        terraformVersion: $(ExtractingVariables tfversion)
-        
-  - task: ms-devlabs. custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
-    displayName: 'Terraform: init" 
-    inputs:
-       workingDirectory: '$(Build.SourcesDirectory) \Terraform-MRR\$(clientsn) -$(environmentName)'
-       command: 'init'
+variables:
+  workingDir: '$(Build.SourcesDirectory)\Client-XYZ'
+  serviceConnection: 'TerraformTraining'
+  terraformVersion: '1.5.7'
 
-  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
-    displayName: 'Terraform: plan' 
-    inputs:
-       workingDirectory: '$(Build.SourcesDirectory) \Terraform-MRR\$(clientsn) -$(environmentName)'
-       command: 'plan'
-       commandOptions: '-var-file="$(build.sourcesDirectory)\Terraform-MRR\$(clientsn)-$(environmentName)\terraform.tfvars"'
+stages:
+
+
+- stage: Plan
+  displayName: Terraform Plan
+  jobs:
+  - job: PlanJob
+    steps:
+    - checkout: self
+
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: '$(terraformVersion)'
+
+
+    - script: terraform -version
+      displayName: Verify Terraform Version
+
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+      displayName: Terraform Init
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(workingDir)'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmResourceGroupName: 'tf-rg'
+        backendAzureRmStorageAccountName: 'tfstorageacct123'
+        backendAzureRmContainerName: 'tfstate'
+        backendAzureRmKey: 'terraform.tfstate'
+
+    - script: terraform validate
+      workingDirectory: $(workingDir)
+      displayName: Terraform Validate
+
+
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+      displayName: Terraform Plan
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(workingDir)'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+        commandOptions: '-out=tfplan'
+
+   
+    - publish: $(workingDir)\tfplan
+      artifact: tfplan
+
+
+
+- stage: Apply
+  displayName: Terraform Apply
+  dependsOn: Plan
+  condition: succeeded()
+
+  jobs:
+  - deployment: ApplyJob
+    displayName: Apply with Approval
+    environment: prod-approval   
+
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          - download: current
+            artifact: tfplan
+
+          
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - script: terraform -version
+            displayName: Verify Terraform Version
+
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+            displayName: Terraform Init
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(workingDir)'
+              backendServiceArm: '$(serviceConnection)'
+              backendAzureRmResourceGroupName: 'tf-rg'
+              backendAzureRmStorageAccountName: 'tfstorageacct123'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'terraform.tfstate'
+
+     
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-release-task.TerraformTaskv4@4
+            displayName: Terraform Apply
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: '$(workingDir)'
+              environmentServiceNameAzureRM: '$(serviceConnection)'
+              commandOptions: 'tfplan'
