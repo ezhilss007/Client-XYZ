@@ -1,0 +1,10 @@
+Application Name : Demo Application
+Environment      : Development
+Version          : 1.0.0
+
+Database Host    : db-dev.company.local
+Database Port    : 5432
+Log Level        : INFO
+
+This file is used for demonstrating
+merge conflicts in GitHub Pull Requests.
