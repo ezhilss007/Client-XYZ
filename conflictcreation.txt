@@ -1,10 +1,12 @@
 Application Name : Demo Application
 Environment      : Development
-Version          : 1.0.0
+Version          : 1.1.0
 
-Database Host    : db-dev.company.local
+Database Host    : db-feature.company.local
 Database Port    : 5432
-Log Level        : INFO
+Log Level        : DEBUG
+
+Feature branch updated the configuration.
 
 This file is used for demonstrating
 merge conflicts in GitHub Pull Requests.
