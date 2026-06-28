@@ -6,11 +6,6 @@ Database Host    : db-dev.company.local
 Database Port    : 5432
 Log Level        : INFO
 
-Feature branch updated the configuration.
-
-Feature branch updated the configuration.
-
-This file is used for demonstrating conflict issues and we need to resolve it before merging it
 This file is used for demonstrating
 merge conflicts in GitHub Pull Requests.
 
