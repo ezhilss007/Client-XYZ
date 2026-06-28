@@ -8,5 +8,7 @@ Log Level        : DEBUG
 
 Feature branch updated the configuration.
 
-This file is used for demonstrating
+Feature branch updated the configuration.
+
+This file is used for demonstrating conflict issues and we need to resolve it before merging it
 merge conflicts in GitHub Pull Requests.
