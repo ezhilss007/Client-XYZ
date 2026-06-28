@@ -8,3 +8,5 @@ Log Level        : INFO
 
 This file is used for demonstrating
 merge conflicts in GitHub Pull Requests.
+
+check the conflicts to resolve this file 
